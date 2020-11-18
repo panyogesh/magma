@@ -29,6 +29,7 @@ PROXY_TAG_REG = 'reg9'
 # another app):
 SCRATCH_REGS = ['reg0', 'reg3']
 RULE_VERSION_REG = 'reg4'
+NG_FLOW_ENABLE_REG = 'reg11'
 
 # Register values
 REG_ZERO_VAL = 0x0
@@ -36,7 +37,6 @@ PASSTHROUGH_REG_VAL = 0x1
 
 # values for PROXY_TAG_REG
 PROXY_TAG_TO_PROXY = 0x1
-
 
 class Direction(IntEnum):
     """
@@ -65,7 +65,6 @@ def load_direction(parser, direction: Direction):
     if not is_valid_direction(direction):
         raise Exception("Invalid direction")
     return parser.NXActionRegLoad2(dst=DIRECTION_REG, value=direction.value)
-
 
 def load_imsi(parser, imsi):
     """
