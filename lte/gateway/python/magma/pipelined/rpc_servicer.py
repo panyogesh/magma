@@ -59,6 +59,7 @@ from magma.pipelined.metrics import (
 from magma.pipelined.imsi import encode_imsi
 from magma.pipelined.ng_manager.session_state_manager_util import PDRRuleEntry
 from magma.pipelined.app.ng_services import NGServiceController
+from orc8r.protos.common_pb2 import Void
 
 grpc_msg_queue = queue.Queue()
 
@@ -419,6 +420,15 @@ class PipelinedRpcServicer(pipelined_pb2_grpc.PipelinedServicer):
         self._loop.call_soon_threadsafe(
             self._enforcement_stats.get_policy_usage, fut)
         return fut.result()
+
+
+    # -------------------------
+    # GRPC messages from MME
+    #--------------------------
+    def UpdateUEState(self, request, context):
+        logging.info("==== Message from MME ====")
+        logging.info(request)
+        return (Void())
 
     # --------------------------
     # IPFIX App

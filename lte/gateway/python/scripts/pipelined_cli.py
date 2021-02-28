@@ -26,6 +26,8 @@ from magma.common.rpc_utils import grpc_wrapper, grpc_async_wrapper
 from lte.protos.pipelined_pb2 import (
     SubscriberQuotaUpdate,
     UpdateSubscriberQuotaStateRequest,
+    UESessionState,
+    UESessionSet,
 )
 from lte.protos.policydb_pb2 import RedirectInformation
 from magma.pipelined.app.enforcement import EnforcementController
@@ -53,6 +55,48 @@ from magma.pipelined.tests.app.ng_set_session_msg import (
 
 from lte.protos.pipelined_pb2_grpc import PipelinedStub
 from lte.protos.policydb_pb2 import FlowMatch, FlowDescription, PolicyRule
+from lte.protos.mobilityd_pb2 import IPAddress
+
+@grpc_wrapper
+def set_mme_session(client, args):
+
+    ue_ipv4_addr=None
+    if (len(args.ue_ipv4_addr)):
+        ue_ipv4_addr = IPAddress(version=IPAddress.IPV4,
+                                 address=args.ue_ipv4_addr.encode('utf-8'))
+
+    ue_ipv6_addr=None
+    if (len(args.ue_ipv6_addr)):
+        ue_ipv6_addr = IPAddress(version=IPAddress.IPV6,
+                                 address=args.ue_ipv6_addr.encode('utf-8'))
+
+    enb_ip_addr=None
+    if (len(args.enb_ip_addr)):
+      enb_ip_addr = IPAddress(version=IPAddress.IPV4,
+                              address=args.enb_ip_addr.encode('utf-8'))
+
+    if (args.state == 'ACTIVE'):
+       ue_state=UESessionState(ue_state=UESessionState.ACTIVE_STATE)
+    elif (args.state == 'IDLE'):
+       ue_state=UESessionState(ue_state=UESessionState.IDLE_STATE)
+    elif (args.state == 'UNREGISTERED_STATE'):
+       ue_state=UESessionState(ue_state=UESessionState.UNREGISTERED_STATE)
+    elif (args.state == 'SUSPENDED_STATE'):
+       ue_state=UESessionState(UESessionState.SUSPENDED_STATE)
+
+    request  = UESessionSet(subscriber_id=SIDUtils.to_pb(args.imsi),
+                            precedence=args.priority,
+                            ue_ipv4_address=ue_ipv4_addr,
+                            ue_ipv6_address=ue_ipv6_addr,
+                            enb_ip_address=enb_ip_addr,
+                            apn=args.apn,
+                            vlan=args.vlan,
+                            in_teid=args.in_teid,
+                            out_teid=args.out_teid,
+                            state=ue_state,
+                            controller_id=args.controller_id)
+    print(request)
+    response = client.UpdateUEState(request)
 
 @grpc_wrapper
 def set_smf_session(client, args):
@@ -297,6 +341,39 @@ def create_ng_services_parser(apps):
                         type=int, default=0)
 
     subcmd.set_defaults(func=set_smf_session)
+
+def create_pg_services_parser(apps):
+    """
+    Creates the argparse subparser for the pg_services app
+    pg refers to services from MME to PIPELINED
+    """
+    app = apps.add_parser('pg_services')
+    subparsers = app.add_subparsers(title='subcommands', dest='cmd')
+
+    subcmd = subparsers.add_parser('set_mme_session',
+                                   help='MME set Session Emulator')
+    subcmd.add_argument('--imsi', help='Subscriber Identity', default='IMSI12345')
+    subcmd.add_argument('--priority', help='priority for rule',
+                        type=int, default=0)
+    subcmd.add_argument('--ue_ipv4_addr', help='UE IPv4 address ',
+                         default='')
+    subcmd.add_argument('--ue_ipv6_addr', help='UE IPv6 address ',
+                         default='')
+    subcmd.add_argument('--enb_ip_addr', help='IP address of ENB Node',
+                         default='')
+    subcmd.add_argument('--apn', help='APN for accessing net',
+                        default="magma.com")
+    subcmd.add_argument('--vlan', help='Vlan Configuration for out ports',
+                         type=int, default=0)
+    subcmd.add_argument('--in_teid', help='Match incoming teid from access',
+                         type=int, default=0)
+    subcmd.add_argument('--out_teid', help='Put outgoing teid towards access',
+                         type=int, default=0)
+    subcmd.add_argument('--state', help='ACTIVE / IDLE / UNREGISTERED / SUSPENDED',
+                         default='ACTIVE')
+    subcmd.add_argument('--controller_id', help='MMEs contrller ID',
+                         type=int, default=0)
+    subcmd.set_defaults(func=set_mme_session)
 
 def create_enforcement_parser(apps):
     """
@@ -569,6 +646,7 @@ def create_parser():
         description='Management CLI for pipelined',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     apps = parser.add_subparsers(title='apps', dest='cmd')
+    create_pg_services_parser(apps)
     create_ng_services_parser(apps)
     create_enforcement_parser(apps)
     create_ue_mac_parser(apps)
